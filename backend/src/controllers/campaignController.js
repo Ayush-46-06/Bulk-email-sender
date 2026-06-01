@@ -51,30 +51,35 @@ const sendCampaign = async (req, res) => {
     campaign.status = 'sending';
     await campaign.save();
     
-    res.json({ 
-      message: limitWarning || `Campaign sending started for ${contacts.length} contacts in batch.`,
-      warning: limitWarning
-    });
-    
     let successCount = 0;
     
-    for (const contact of contacts) {
+    // Send all emails in parallel to avoid Vercel's 10-second timeout
+    const emailPromises = contacts.map(async (contact) => {
       try {
-        await sendDynamicEmail(contact, campaign); // contact is already a plain object
+        await sendDynamicEmail(contact, campaign);
         successCount++;
-        
-        await Campaign.findByIdAndUpdate(campaignId, { $inc: { totalSent: 1 } });
-        await delay(200);
+        return true;
       } catch (err) {
         console.error(`Failed to send email to ${contact.email}:`, err.message);
+        return false;
       }
-    }
+    });
     
-    await Campaign.findByIdAndUpdate(campaignId, { status: 'completed' });
+    await Promise.all(emailPromises);
+    
+    await Campaign.findByIdAndUpdate(campaignId, { 
+      status: 'completed',
+      $inc: { totalSent: successCount }
+    });
     
     // Clean up memory
     batches.delete(batchId);
     console.log(`Campaign ${campaign.name} completed for batch ${batchId}. Sent ${successCount} emails. Memory cleared.`);
+
+    res.json({ 
+      message: `Successfully sent ${successCount} emails.` + (limitWarning ? ` ${limitWarning}` : ''),
+      successCount
+    });
     
   } catch (error) {
     console.error('Error in sendCampaign:', error);
