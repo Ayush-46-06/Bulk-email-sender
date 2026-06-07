@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Send, Info, Plus } from 'lucide-react';
+import { Send, Info, Plus, Sparkles } from 'lucide-react';
 import axios from 'axios';
 import toast from 'react-hot-toast';
 import DefaultEditor from 'react-simple-wysiwyg';
@@ -11,6 +11,34 @@ const CampaignCreator = ({ batchId, availableTags = [] }) => {
     htmlTemplate: '<b>Hi {{salutation}} {{name}},</b><br><br>Welcome to our platform.'
   });
   const [isSending, setIsSending] = useState(false);
+  const [aiPrompt, setAiPrompt] = useState('');
+  const [isGeneratingAI, setIsGeneratingAI] = useState(false);
+
+  const handleGenerateAI = async () => {
+    if (!aiPrompt) {
+      toast.error("Please enter a prompt for the AI");
+      return;
+    }
+    
+    setIsGeneratingAI(true);
+    const toastId = toast.loading('Generating email with AI...');
+
+    try {
+      const res = await axios.post('/api/ai/generate', {
+        prompt: aiPrompt,
+        availableTags: availableTags
+      });
+      
+      setFormData(prev => ({ ...prev, htmlTemplate: res.data.html }));
+      toast.success('Email generated successfully!', { id: toastId });
+    } catch (error) {
+      console.error(error);
+      toast.error(error.response?.data?.error || "Failed to generate email", { id: toastId });
+    } finally {
+      setIsGeneratingAI(false);
+    }
+  };
+
 
   const handleChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
@@ -109,6 +137,30 @@ const CampaignCreator = ({ batchId, availableTags = [] }) => {
               3
             </div>
             <h3 className="text-xl font-bold text-royal-dark">Step 3: Draft Email</h3>
+          </div>
+        </div>
+
+        <div className="mb-6 bg-gradient-to-r from-royal-light/30 to-purple-500/10 p-4 rounded-xl border border-royal-blue/20">
+          <label className="block text-sm font-bold text-royal-dark mb-2 flex items-center gap-2">
+            <Sparkles className="w-4 h-4 text-purple-500" />
+            AI Email Generator
+          </label>
+          <div className="flex flex-col sm:flex-row gap-3">
+            <input 
+              type="text" 
+              value={aiPrompt}
+              onChange={(e) => setAiPrompt(e.target.value)}
+              placeholder="e.g., Write a welcome email offering a 20% discount..."
+              className="input-field flex-1"
+              disabled={isGeneratingAI}
+            />
+            <button
+              onClick={handleGenerateAI}
+              disabled={isGeneratingAI}
+              className="btn-primary flex items-center justify-center gap-2 px-6 whitespace-nowrap bg-gradient-to-r from-purple-600 to-royal-blue hover:from-purple-700 hover:to-royal-dark"
+            >
+              {isGeneratingAI ? 'Generating...' : '✨ Generate'}
+            </button>
           </div>
         </div>
         

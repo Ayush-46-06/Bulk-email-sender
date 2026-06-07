@@ -20,9 +20,11 @@ app.use(express.urlencoded({ extended: true }));
 // Routes
 const campaignRoutes = require('./routes/campaignRoutes');
 const contactRoutes = require('./routes/contactRoutes');
+const aiRoutes = require('./routes/aiRoutes');
 
 app.use('/api/campaigns', campaignRoutes);
 app.use('/api/contacts', contactRoutes);
+app.use('/api/ai', aiRoutes);
 
 // Health check
 app.get('/health', (req, res) => {
